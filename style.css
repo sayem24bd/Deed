@@ -1,0 +1,255 @@
+:root{
+  --bg: #f8f9fa; --card: #ffffff; --text: #111; --muted:#555;
+  --primary:#0d6efd; --border:#dcdcdc; --highlight:#fff59d;
+  --toast-bg: #212529; --toast-text: #fff;
+}
+body.dark{
+  --bg:#0f1115; --card:#151922; --text:#eaeef6; --muted:#9aa4b2;
+  --primary:#4dabf7; --border:#2a3140; --highlight:#3a3f27;
+  --toast-bg: #eaeef6; --toast-text: #111;
+}
+
+*{ box-sizing:border-box; }
+body{
+  /* যদি স্থানীয় বাংলা ফন্ট না থাকে, তাহলে fallback ব্যবহার করবে */
+  font-family: "SolaimanLipi", "AdorshoLipi", "Noto Sans Bengali", Arial, sans-serif;
+  margin: 0; color: var(--text); background: var(--bg);
+  transition: background 0.2s, color 0.2s;
+}
+
+header{
+  position: sticky; top:0; z-index: 10;
+  background: var(--bg); border-bottom:1px solid var(--border);
+  padding: 12px 16px; display:flex; align-items:center; gap:12px;
+}
+header h1{ font-size:18px; margin:0; }
+header .spacer{ flex:1; }
+button{ cursor:pointer; }
+header .btn{
+  background: var(--primary); color:#fff; border:none; border-radius:8px;
+  padding:8px 12px;
+}
+header .ghost{
+  background: transparent; color: var(--text); border:1px solid var(--border);
+  border-radius:8px; padding:8px 12px;
+}
+
+.container{ padding:16px; max-width:1200px; margin:0 auto; }
+.controls{ display:flex; gap:10px; flex-wrap:wrap; align-items: flex-end; }
+input[type="text"], select{
+  width:100%; padding:10px; font-size:16px; color:var(--text);
+  background: var(--card); border:1px solid var(--border); border-radius:8px;
+}
+label{ font-size:13px; color:var(--muted); display:block; margin-bottom:6px; }
+fieldset{ border:1px solid var(--border); padding:10px; border-radius:8px; }
+legend{ padding:0 6px; color:var(--muted); }
+
+.tags{ display:flex; gap:8px; flex-wrap:wrap; }
+.tag{
+  display:inline-flex; align-items:center; gap:6px; cursor:pointer;
+  background: var(--card); border:1px solid var(--border);
+  border-radius:20px; padding:6px 10px; user-select:none;
+}
+.tag input{ accent-color: var(--primary); }
+
+.count{ margin:10px 0; color:var(--muted); font-size:14px; }
+.layout{ display:grid; gap:16px; grid-template-columns: 1fr; }
+
+.sidebar{
+  background: var(--card); border:1px solid var(--border); border-radius:12px;
+  padding:12px; align-self: flex-start;
+}
+.bookmark-filter{ margin-top: 16px; }
+.bookmark-filter label { display:flex; align-items:center; gap: 8px; cursor:pointer; }
+
+.cards{ 
+  display:grid; 
+  gap:0px; 
+  grid-template-columns: 1fr;  
+  grid-auto-rows: min-content;
+  align-items: start; 
+}
+.card{
+  background: var(--card); border:1px solid var(--border);
+  border-radius:12px; padding:12px;
+  box-shadow:0 2px 5px rgba(0,0,0,0.05);
+  transition: box-shadow 0.2s, transform 0.15s;
+}
+.card:hover{ transform: translateY(-2px); }
+.card-header{ cursor: pointer; outline: none; }
+.card-details {
+  display: none;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.card.expanded .card-details { display: block; }
+.card b{ color: var(--text); }
+.meta{ color: var(--muted); font-size:13px; margin-top:6px; }
+.actions{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; }
+.actions button {
+  padding:6px 10px; border-radius:8px; border:1px solid var(--border); 
+  background: var(--card); color:var(--text);
+}
+.actions button.primary{ background: var(--primary); color:#fff; border:none; }
+.actions button.danger{ border-color:#ff6b6b; color:#ff6b6b; }
+.actions button.speak-btn { padding: 4px 8px; font-size: 16px; }
+
+.highlight{ background: var(--highlight); }
+
+/* focus styles (accessibility) */
+.card-header:focus,
+button:focus,
+input:focus,
+select:focus {
+  outline: 3px solid rgba(13,110,253,0.15);
+  outline-offset: 2px;
+}
+
+/* বাটন গ্রুপের জন্য সাধারণ স্টাইল */
+.button-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.button-group button, header .ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+  padding: 8px 12px;
+  border-radius: 8px;
+}
+
+/* প্রধান ফিল্টার বাটনের জন্য স্টাইল */
+.btn-filter {
+  background-color: var(--primary);
+  color: #fff;
+  border: 1px solid var(--primary);
+}
+.btn-filter:hover {
+  opacity: 0.85;
+  transform: translateY(-1px);
+}
+
+/* গৌণ 'ghost' বাটনের স্টাইল */
+.ghost {
+  background-color: transparent;
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+.ghost:hover {
+  color: var(--text);
+  border-color: var(--text);
+  background-color: var(--card);
+}
+
+/* বাটনের ভেতরের SVG আইকনের জন্য স্টাইল */
+.button-group button svg {
+  stroke-width: 2.5;
+}
+
+/* ছোট স্ক্রিনে ফিল্টার বাটনের টেক্সট লুকিয়ে ফেলা */
+@media (max-width: 480px) {
+  .btn-filter span {
+    display: none;
+  }
+  .btn-filter {
+    padding: 8px;
+  }
+}
+
+/* Toast Notification Styles */
+.toast {
+  visibility: hidden; position: fixed; bottom: 20px; left: 50%;
+  transform: translateX(-50%); background-color: var(--toast-bg);
+  color: var(--toast-text); padding: 12px 20px; border-radius: 8px;
+  z-index: 100; opacity: 0; transition: opacity 0.3s, visibility 0.3s;
+}
+.toast.show { visibility: visible; opacity: 1; }
+
+footer{ padding:20px; text-align:center; color:var(--muted); }
+
+@media (min-width: 960px){
+  .layout{grid-template-columns: 300px 1fr; }
+  
+ .cards {
+    column-count: 2;
+    column-gap: 12px;
+  }
+
+  .card {
+    break-inside: avoid;
+    margin-bottom: 12px;
+  }
+}
+
+/* উন্নত মোবাইল ফিল্টারের জন্য CSS */
+#filterToggleBtn {
+  display: block;
+}
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 280px;
+  height: 100%;
+  background: var(--card);
+  z-index: 1000;
+  padding: 20px;
+  overflow-y: auto;
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-in-out;
+  border: none;
+}
+
+body.filter-open .sidebar {
+  transform: translateX(0);
+}
+
+@media (min-width: 960px) {
+  .sidebar {
+    position: static;
+    width: auto;
+    height: auto;
+    transform: none;
+    z-index: 1;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+
+  .layout {
+    grid-template-columns: 300px 1fr;
+  }
+}
+
+#mobileControlsContainer .js-movable {
+  margin-bottom: 16px;
+}
+
+@media (min-width: 960px) {
+  #mobileControlsContainer {
+    display: none;
+  }
+}
+
+/* URL থেকে আসা কার্ড হাইলাইট করার জন্য অ্যানিমেশন */
+@keyframes highlight-fade {
+  0% {
+    background-color: var(--highlight);
+    border-color: var(--primary);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  }
+  100% {
+    background-color: var(--card);
+    border-color: var(--border);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  }
+}
+
+.card.card-highlighted {
+  animation: highlight-fade 2.5s ease-in-out;
+}

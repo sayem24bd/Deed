@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <title>দলিল সহায়ক</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0d6efd">
+  <link rel="stylesheet" href="style.css">
+  <!-- Fuse.js for fuzzy search (optional) -->
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js" defer></script>
+</head>
+<body>
+
+<header role="banner" aria-label="অ্যাপ হেডার">
+  <h1>দলিল সহায়ক</h1>
+  <div class="spacer"></div>
+
+  <div class="button-group" role="group" aria-label="হেডার বাটন">
+    <button id="filterToggleBtn" class="btn-filter" title="ফিল্টার খুলুন" aria-label="ফিল্টার মেনু খুলুন" type="button">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.46L22 3z"></path></svg>
+      <span>ফিল্টার</span>
+    </button>
+    <button id="clearFilters" class="ghost" title="ফিল্টার রিসেট করুন" aria-label="সব ফিল্টার রিসেট করুন" type="button">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+    </button>
+  </div>
+  
+  <button id="themeToggle" class="ghost" aria-label="থিম টগল" type="button"></button>
+  <button id="installBtn" class="btn" hidden type="button">⬇️ Install</button>
+</header>
+
+<main class="container" role="main">
+
+    <section id="controlsContainer" class="controls" aria-label="সার্চ ও ফিল্টার">
+      <div id="searchWrap" class="js-movable" style="flex:2;">
+        <label for="searchBox">সার্চ (বানান ভুল হলেও খুঁজবে)</label>
+        <input id="searchBox" type="text" placeholder="প্রশ্ন, ধারা, বা কীওয়ার্ড লিখুন..." aria-label="সার্চ ইনপুট" />
+      </div>
+
+      <div id="sortWrap" class="js-movable">
+        <label for="sort">সাজান</label>
+        <select id="sort" aria-label="সোর্ট নির্বাচন">
+          <option value="relevance">Relevance</option>
+          <option value="newest">সর্বশেষ সাল</option>
+          <option value="az">প্রশ্ন A–Z</option>
+          <option value="section">ধারা অনুযায়ী</option>
+        </select>
+      </div>
+    </section>
+   
+  <section class="layout" aria-label="ফিল্টার সাইডবার ও রেজাল্ট">
+    <aside class="sidebar" aria-label="অ্যাডভান্সড ফিল্টার">
+      <div id="mobileControlsContainer"></div>
+      <div class="controls-row">
+        <div style="flex:1">
+          <label for="section">ধারা</label>
+          <select id="section"></select>
+        </div>
+        <div style="flex:1">
+          <label for="year">সাল</label>
+          <select id="year"></select>
+        </div>
+      </div>
+
+      <fieldset style="margin-top:12px;">
+        <legend>ট্যাগ</legend>
+        <div id="tagsWrap" class="tags" role="group" aria-label="ট্যাগ ফিল্টার"></div>
+      </fieldset>
+      
+      <div class="bookmark-filter">
+        <label>
+          <input type="checkbox" id="showBookmarksOnly">
+          <span>শুধু বুকমার্ক করা ফলাফল দেখান</span>
+        </label>
+      </div>
+    </aside>
+
+    <section>
+      <div id="count" class="count" aria-live="polite"></div>
+      <div id="results" class="cards" aria-label="সার্চ ফলাফল"></div>
+
+      <h3 style="margin-top:18px;">📌 বুকমার্কড</h3>
+      <div id="bookmarks" class="cards" aria-label="বুকমার্ক তালিকা"></div>
+    </section>
+  </section>
+</main>
+
+<footer>
+  © দলিল সহায়ক — অফলাইন সাপোর্টেড PWA
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>
