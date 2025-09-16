@@ -334,29 +334,6 @@
 "source": "রেজিস্ট্রেশন আইন, ১৯০৮",
 "law_reference_link": "https://aistudio.google.com/prompts/1nFw_H6pfr9hmZUZB_YHPRLx2rA_KnjKi",
 "related_ids": [2, 6, 14]
-  },
-
-[{
-  "id": 22,
-  "question_bn": "দলিল কত দিনের মধ্যে রেজিস্ট্রি করতে হবে?",
-  "answer_bn": "স্বাক্ষরের ৪ মাসের মধ্যে রেজিস্ট্রি বাধ্যতামূলক।",
-  "explanation_bn": "রেজিস্ট্রেশন আইন, ১৯০৮ এর ২৩ ধারা অনুযায়ী...",
-  "law_info": {
-    "name_bn": "রেজিস্ট্রেশন আইন",
-    "section": "২৩",
-    "url": "https://bdlaws.minlaw.gov.bd/laws/index/5657/23.html"
-  },
-  "case_info": {
-    "title": "Abdul Rahman vs State",
-    "year": 2010
-  },
-  "tags": ["রেজিস্ট্রি", "সময়সীমা"],
-  "keywords": ["দলিল রেজিস্ট্রেশন", "সময়কাল"],
-  "related_ids": [2, 6, 14],
-  "meta": {
-    "last_updated": "2024-07-20",
-    "created_by": "sayem24bd",
-    "version": "1.1"
   }
 
 ]
