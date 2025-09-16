@@ -301,7 +301,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const keyDiv = document.createElement("div");
       const keyLabel = document.createElement("span");
       keyLabel.className = "label label-keywords";
-      keyLabel.textContent = "কিওয়ার্ডস: ";
+      keyLabel.textContent = "কিওয়ার্ড: ";
       keyDiv.appendChild(keyLabel);
       keyDiv.appendChild(buildHighlightedFragment(item.key_point || "-", keyword));
       details.appendChild(keyDiv);
@@ -818,3 +818,4 @@ caseDiv.appendChild(caseLabel);
 
   init();
 });
+
