@@ -253,3 +253,33 @@ body.filter-open .sidebar {
 .card.card-highlighted {
   animation: highlight-fade 2.5s ease-in-out;
 }
+
+.serial-no {
+  font-weight: bold;      /* মোটা অক্ষর */
+  color: #0d6efd;         /* নীল রঙ */
+  margin-right: 6px;      /* নম্বর আর প্রশ্নের মধ্যে ফাঁকা */
+  font-size: 1.1em;       /* সামান্য বড় ফন্ট */
+}
+
+.label {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-weight: 600;
+  margin-right: 6px;
+  font-size: 0.9em;
+}
+
+/* Light theme */
+body:not(.dark) .label { background: #f0f4ff; color: #0d6efd; }
+
+/* Dark theme */
+body.dark .label { background: #1e293b; color: #60a5fa; }
+
+/* আলাদা রঙ */
+.label-question { color: #16a34a; }   /* সবুজ */
+.label-answer   { color: #d97706; }   /* কমলা */
+.label-details  { color: #7c3aed; }   /* বেগুনি */
+.label-keywords { color: #db2777; }   /* গোলাপি */
+.label-section  { color: #0891b2; }   /* সায়ান */
+.label-case     { color: #dc2626; }   /* লাল */
