@@ -290,7 +290,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const keyDiv = document.createElement("div");
       const keyBold = document.createElement("b");
-      keyBold.textContent = "কিওয়ার্ডস: ";
+      keyBold.textContent = "কিওয়ার্ড: ";
       keyDiv.appendChild(keyBold);
       keyDiv.appendChild(buildHighlightedFragment(item.key_point || "-", keyword));
       details.appendChild(keyDiv);
@@ -314,7 +314,7 @@ document.addEventListener("DOMContentLoaded", () => {
       meta.className = "meta";
       let metaContent = `ট্যাগ: ${item.tags.map(t => `#${t}`).join(" · ")}`;
       if (item.keywords && item.keywords.length) {
-        metaContent += ` | কিওয়ার্ডস: ${item.keywords.map(k => `#${k}`).join(" · ")}`;
+        metaContent += ` | কিওয়ার্ড: ${item.keywords.map(k => `#${k}`).join(" · ")}`;
       }
       metaContent += ` | সাল: ${item.year || "N/A"}`;
       if (item.source) {
@@ -330,11 +330,11 @@ document.addEventListener("DOMContentLoaded", () => {
       if (item.law_reference_link) {
         const linkDiv = document.createElement("div");
         const linkBold = document.createElement("b");
-        linkBold.textContent = "আইনের লিংক: ";
+        linkBold.textContent = "লিংক: ";
         linkDiv.appendChild(linkBold);
         const lawLink = document.createElement("a");
         lawLink.href = item.law_reference_link;
-        lawLink.textContent = "দেখুন";
+        lawLink.textContent = "ক্লিক";
         lawLink.target = "_blank";
         lawLink.rel = "noopener noreferrer";
         linkDiv.appendChild(lawLink);
