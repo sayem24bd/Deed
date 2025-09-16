@@ -143,6 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
       seen.add(id);
       const normalized = {
         id,
+		serial_no: String(item.serial_no || "").trim(),
         question: String(item.question || "").trim(),
         answer: String(item.answer || "").trim(),
         details: String(item.details || "").trim(), // নতুন
@@ -257,10 +258,17 @@ document.addEventListener("DOMContentLoaded", () => {
       header.setAttribute("role", "button");
       header.setAttribute("tabindex", "0");
       header.setAttribute("aria-controls", `card-${item.id}-details`);
+	  
+	   // ক্রমিক নং যোগ করার জন্য নতুন অংশ
+      const serialNoSpan = document.createElement("span");
+      serialNoSpan.className = "serial-no";
+      serialNoSpan.textContent = ` ${item.serial_no || item.id}।`; // serial_no না থাকলে id ব্যবহার করবে
+      header.appendChild(serialNoSpan);
 
-      const headerBold = document.createElement("b");
-      headerBold.textContent = "প্রশ্ন: ";
-      header.appendChild(headerBold);
+      const headerLabel = document.createElement("span");
+      headerLabel.className = "label label-question";
+      headerLabel.textContent = "প্রশ্ন: ";
+      header.appendChild(headerLabel);
       header.appendChild(buildHighlightedFragment(item.question, keyword));
       article.appendChild(header);
 
@@ -272,40 +280,45 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // ... (existing code for answerDiv)
       const answerDiv = document.createElement("div");
-      const answerBold = document.createElement("b");
-      answerBold.textContent = "উত্তর: ";
-      answerDiv.appendChild(answerBold);
+      const answerLabel = document.createElement("span");
+      answerLabel.className = "label label-answer";
+      answerLabel.textContent = "উত্তর: ";
+      answerDiv.appendChild(answerLabel);
       answerDiv.appendChild(buildHighlightedFragment(item.answer, keyword));
       details.appendChild(answerDiv);
 
       // Add details (can be an optional longer explanation)
       if (item.details) {
         const detailsDiv = document.createElement("div");
-        const detailsBold = document.createElement("b");
-        detailsBold.textContent = "বিস্তারিত: ";
-        detailsDiv.appendChild(detailsBold);
+        const detailsLabel = document.createElement("span");
+        detailsLabel.className = "label label-details";
+        detailsLabel.textContent = "বিস্তারিত: ";
+        detailsDiv.appendChild(detailsLabel);
         detailsDiv.appendChild(buildHighlightedFragment(item.details, keyword));
         details.appendChild(detailsDiv);
       }
 
       const keyDiv = document.createElement("div");
-      const keyBold = document.createElement("b");
-      keyBold.textContent = "কিওয়ার্ড: ";
-      keyDiv.appendChild(keyBold);
+      const keyLabel = document.createElement("span");
+      keyLabel.className = "label label-keywords";
+      keyLabel.textContent = "কিওয়ার্ডস: ";
+      keyDiv.appendChild(keyLabel);
       keyDiv.appendChild(buildHighlightedFragment(item.key_point || "-", keyword));
       details.appendChild(keyDiv);
 
       const sectionDiv = document.createElement("div");
-      const secBold = document.createElement("b");
-      secBold.textContent = "ধারা: ";
-      sectionDiv.appendChild(secBold);
+      const sectionLabel = document.createElement("span");
+sectionLabel.className = "label label-section";
+sectionLabel.textContent = "ধারা: ";
+sectionDiv.appendChild(sectionLabel);
       sectionDiv.appendChild(buildHighlightedFragment(item.law_section || "-", keyword));
       details.appendChild(sectionDiv);
 
       const caseDiv = document.createElement("div");
-      const caseBold = document.createElement("b");
-      caseBold.textContent = "মামলা: ";
-      caseDiv.appendChild(caseBold);
+      const caseLabel = document.createElement("span");
+caseLabel.className = "label label-case";
+caseLabel.textContent = "মামলা: ";
+caseDiv.appendChild(caseLabel);
       caseDiv.appendChild(buildHighlightedFragment(item.case_reference || "কোনো মামলা রেফারেন্স নেই", keyword));
       details.appendChild(caseDiv);
 
@@ -330,7 +343,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (item.law_reference_link) {
         const linkDiv = document.createElement("div");
         const linkBold = document.createElement("b");
-        linkBold.textContent = "লিংক: ";
+        linkBold.textContent = "আরো জানতে: ";
         linkDiv.appendChild(linkBold);
         const lawLink = document.createElement("a");
         lawLink.href = item.law_reference_link;
