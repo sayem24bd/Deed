@@ -301,7 +301,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const keyDiv = document.createElement("div");
       const keyLabel = document.createElement("span");
       keyLabel.className = "label label-keywords";
-      keyLabel.textContent = "কিওয়ার্ড: ";
+      keyLabel.textContent = "শিক্ষা: ";
       keyDiv.appendChild(keyLabel);
       keyDiv.appendChild(buildHighlightedFragment(item.key_point || "-", keyword));
       details.appendChild(keyDiv);
@@ -327,7 +327,7 @@ caseDiv.appendChild(caseLabel);
       meta.className = "meta";
       let metaContent = `ট্যাগ: ${item.tags.map(t => `#${t}`).join(" · ")}`;
       if (item.keywords && item.keywords.length) {
-        metaContent += ` | কিওয়ার্ড: ${item.keywords.map(k => `#${k}`).join(" · ")}`;
+        metaContent += ` |শিক্ষা: ${item.keywords.map(k => `#${k}`).join(" · ")}`;
       }
       metaContent += ` | সাল: ${item.year || "N/A"}`;
       if (item.source) {
@@ -811,11 +811,34 @@ caseDiv.appendChild(caseLabel);
     // Give DOM a moment then highlight if id present
     setTimeout(highlightCardFromURL, 200);
 
-   if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./sw.js");
-    }
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js", { scope: "/" })
+        .then(registration => console.log('Service Worker registered with scope:', registration.scope))
+        .catch(error => console.error('Service Worker registration failed:', error));
+}
   }
 
   init();
 });
 
+// ================================
+// সহজ গ্লোবাল ভিজিটর কাউন্টার (CountAPI)
+// ================================
+(async function () {
+  const counterEl = document.getElementById("visitorCounter");
+  if (!counterEl) return;
+
+  try {
+    // আপনার ডিপ্লয় করা Web App URL এখানে বসান 👇
+    const apiUrl = "https://script.google.com/macros/s/AKfycbzTXuSV_khlAGHSpmXOk1YXd2zRURRzqhUVT2ckN9w2Fz-w39Z_CdiZ2u8nbtKErWIzeg/exec";
+
+    const res = await fetch(apiUrl);
+    if (!res.ok) throw new Error("Network error");
+
+    const data = await res.json();
+    counterEl.textContent = data.value;
+  } catch (e) {
+    console.warn("Visitor counter error:", e);
+    counterEl.textContent = "N/A";
+  }
+})();
