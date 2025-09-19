@@ -42,14 +42,24 @@ self.addEventListener('fetch', event => {
     event.respondWith(
       caches.match(event.request).then(cached => {
         if (cached) {
-          // update cache in background
-          fetch(event.request).then(resp => {
-            if (resp && resp.ok) caches.open(CACHE_NAME).then(cache => cache.put(event.request, resp.clone()));
-          }).catch(()=>{});
+          // Fetch from network in background and update cache (clone response!)
+          fetch(event.request)
+            .then(resp => {
+              if (resp && resp.ok) {
+                const respClone = resp.clone();
+                caches.open(CACHE_NAME).then(cache => cache.put(event.request, respClone));
+              }
+            })
+            .catch(() => {});
+          // Serve from cache
           return cached;
         }
+        // Not in cache, fetch from network and cache (clone response!)
         return fetch(event.request).then(resp => {
-          if (resp && resp.ok) caches.open(CACHE_NAME).then(cache => cache.put(event.request, resp.clone()));
+          if (resp && resp.ok) {
+            const respClone = resp.clone();
+            caches.open(CACHE_NAME).then(cache => cache.put(event.request, respClone));
+          }
           return resp;
         }).catch(() => caches.match('./index.html'));
       })
