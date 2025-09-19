@@ -818,7 +818,7 @@ caseDiv.appendChild(caseLabel);
 }
 
   init();
-});
+}
 
 // ================================
 // সহজ গ্লোবাল ভিজিটর কাউন্টার (CountAPI)
@@ -842,6 +842,7 @@ caseDiv.appendChild(caseLabel);
   }
 
 })();
+
 
 
 
