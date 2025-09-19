@@ -812,7 +812,7 @@ caseDiv.appendChild(caseLabel);
     setTimeout(highlightCardFromURL, 200);
 
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register('./scripts/sw.js')
+		navigator.serviceWorker.register('./scripts/sw.js')
         .then(registration => console.log('Service Worker registered with scope:', registration.scope))
         .catch(error => console.error('Service Worker registration failed:', error));
 }
@@ -842,3 +842,4 @@ caseDiv.appendChild(caseLabel);
     counterEl.textContent = "N/A";
   }
 })();
+
