@@ -219,7 +219,7 @@ document.addEventListener("DOMContentLoaded", () => {
         (item.details && item.details.toLowerCase().includes(k)) || // নতুন
         (item.key_point && item.key_point.toLowerCase().includes(k)) ||
         (item.law_section && item.law_section.toLowerCase().includes(k)) ||
-        (item.case_reference && item.case_reference.toLowerCase().includes(k)) || // case_reference যোগ করা হয়েছে, যদি এটি অনুপস্থিত থাকে
+        (item.case_reference && item.case_reference.toLowerCase().includes(k)) || // case_reference যোগ করা হয়েছে, যদি এটি অনুপস্থিত থাকে[...]
         (item.tags && item.tags.join(" ").toLowerCase().includes(k)) ||
         (item.keywords && item.keywords.join(" ").toLowerCase().includes(k)) // নতুন
       );
@@ -387,7 +387,7 @@ caseDiv.appendChild(caseLabel);
         });
         details.appendChild(relatedDiv);
       }
-	  
+      
 
       const actions = document.createElement("div");
       actions.className = "actions";
@@ -533,7 +533,7 @@ caseDiv.appendChild(caseLabel);
       showToast(ok ? "লিংক কপি হয়েছে!" : "কপি করা সম্ভব হয়নি");
     } catch (e) {
       console.warn("Copy failed: ", e);
-      showToast("কপি করা সম্ভব হয়নি");
+      showToast("কপি করা সম্ভব হয়েছে না");
     }
   };
 
@@ -651,6 +651,9 @@ caseDiv.appendChild(caseLabel);
       if (elements.showBookmarksOnlyCheck) elements.showBookmarksOnlyCheck.addEventListener(evt, applyFilters);
     });
 
+    // Keep a generic change listener on tagsWrap as a fallback.
+    // Note: individual tag inputs also get a change handler (created during init)
+    // which stops propagation to avoid double-calling applyFilters.
     if (elements.tagsWrap) elements.tagsWrap.addEventListener("change", (e) => { if (e.target && e.target.name === "tags") applyFilters(); });
 
     if (elements.clearFiltersBtn) {
@@ -792,6 +795,24 @@ caseDiv.appendChild(caseLabel);
           cb.type = "checkbox";
           cb.name = "tags";
           cb.value = tag;
+          // New: enforce single-selection behavior for tags
+          // When a checkbox is checked, uncheck all other tag checkboxes.
+          // We stop propagation so the parent change listener doesn't call applyFilters twice.
+          cb.addEventListener('change', (e) => {
+            try {
+              e.stopPropagation();
+              if (cb.checked) {
+                const others = Array.from(elements.tagsWrap.querySelectorAll('input[name="tags"]'));
+                others.forEach(other => {
+                  if (other !== cb) other.checked = false;
+                });
+              }
+            } catch (err) {
+              console.warn("Tag single-select handler error:", err);
+            } finally {
+              applyFilters();
+            }
+          });
           const span = document.createElement("span");
           span.textContent = tag;
           label.appendChild(cb);
@@ -842,6 +863,3 @@ caseDiv.appendChild(caseLabel);
     counterEl.textContent = "N/A";
   }
 })();
-
-
-
