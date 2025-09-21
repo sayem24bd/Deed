@@ -1,8 +1,13 @@
-// app.js — Improved & accessible version
+// app.js — সম্পূর্ণ আপডেটেড সংস্করণ (বাংলা মন্তব্য সহ)
+// নিরাপত্তা ও স্থিতিশীলতা বাড়ানোর জন্য কিছু ফাংশন হালনাগাদ করা হয়েছে:
+// - isSafeHref কঠোরতর করা হয়েছে (protocol-relative এবং javascript: স্কিম নিষিদ্ধ)
+// - highlightCardFromURL এখন কেবল integer id গ্রহণ করে (selector-injection প্রতিরোধ)
+// - searchBox ইনপুটের এক্সট্রা ভ্যালিডেশন (maxLength) যোগ করা হয়েছে
+// - buildHighlightedFragment-এ keyword length সীমা ও নিরাপদ regex হেন্ডলিং যোগ করা হয়েছে
+// - অন্যান্য ছোট নিরাপত্তা ও রবারস্টনেস আপডেট
+
 document.addEventListener("DOMContentLoaded", () => {
-  /*************************
-   * Global State & Config
-   *************************/
+  // Global state
   let DATA = [];
   let FUSE = null;
   let bookmarks = (() => {
@@ -18,9 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let debounceTimer;
   let voices = [];
 
-  /*************************
-   * DOM Shortcuts
-   *************************/
+  // DOM shortcuts
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
 
@@ -45,14 +48,15 @@ document.addEventListener("DOMContentLoaded", () => {
     bookmarksWrap: $("#bookmarks"),
   };
 
-  /*************************
-   * Utilities (safe)
-   *************************/
-  const escapeHTML = (str) => {
-    if (str === undefined || str === null) return "";
-    return String(str).replace(/[&<>"']/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m]));
-  };
+  // Limit search input length to mitigate ReDoS / huge regex risks
+  const MAX_KEYWORD_LENGTH = 200;
+  if (elements.searchBox) {
+    try {
+      elements.searchBox.maxLength = MAX_KEYWORD_LENGTH;
+    } catch (e) { /* ignore if unsupported */ }
+  }
 
+  // Helper: highlight matches safely (textContent used)
   const buildHighlightedFragment = (text = "", keyword = "") => {
     const frag = document.createDocumentFragment();
     const safeText = String(text || "");
@@ -61,13 +65,18 @@ document.addEventListener("DOMContentLoaded", () => {
       return frag;
     }
     try {
-      const k = String(keyword).trim();
+      let k = String(keyword).trim();
       if (!k) {
         frag.appendChild(document.createTextNode(safeText));
         return frag;
       }
+      // Limit keyword length
+      if (k.length > MAX_KEYWORD_LENGTH) k = k.slice(0, MAX_KEYWORD_LENGTH);
+
+      // Escape regex metacharacters safely
       const safeK = k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const rx = new RegExp(safeK, "ig");
+
       let lastIndex = 0;
       let match;
       while ((match = rx.exec(safeText)) !== null) {
@@ -76,9 +85,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         const span = document.createElement("span");
         span.className = "highlight";
+        // use textContent to avoid HTML injection
         span.textContent = match[0];
         frag.appendChild(span);
         lastIndex = rx.lastIndex;
+        // prevent infinite loops on zero-length matches
+        if (rx.lastIndex === match.index) rx.lastIndex++;
       }
       if (lastIndex < safeText.length) {
         frag.appendChild(document.createTextNode(safeText.slice(lastIndex)));
@@ -91,6 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  // Safely set query params (used for shareable URLs)
   const setQueryParams = (params) => {
     try {
       const url = new URL(location.href);
@@ -128,10 +141,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  /*************************
-   * Data Validation Helpers
-   *************************/
-    const validateDataArray = (arr) => {
+  // Validate and normalize incoming data array
+  const validateDataArray = (arr) => {
     if (!Array.isArray(arr)) return [];
     const seen = new Set();
     const out = [];
@@ -143,20 +154,20 @@ document.addEventListener("DOMContentLoaded", () => {
       seen.add(id);
       const normalized = {
         id,
-		serial_no: String(item.serial_no || "").trim(),
+        serial_no: String(item.serial_no || "").trim(),
         question: String(item.question || "").trim(),
         answer: String(item.answer || "").trim(),
-        details: String(item.details || "").trim(), // নতুন
+        details: String(item.details || "").trim(),
         key_point: String(item.key_point || "").trim(),
         law_section: String(item.law_section || "").trim(),
         case_reference: String(item.case_reference || "").trim(),
         tags: Array.isArray(item.tags) ? item.tags.map(t => String(t).trim()).filter(Boolean) : [],
-        keywords: Array.isArray(item.keywords) ? item.keywords.map(t => String(t).trim()).filter(Boolean) : [], // নতুন
+        keywords: Array.isArray(item.keywords) ? item.keywords.map(t => String(t).trim()).filter(Boolean) : [],
         year: Number.isFinite(Number(item.year)) ? Number(item.year) : null,
-        last_updated: String(item.last_updated || "").trim(), // নতুন
-        source: String(item.source || "").trim(), // নতুন
-        law_reference_link: String(item.law_reference_link || "").trim(), // নতুন
-        related_ids: Array.isArray(item.related_ids) ? item.related_ids.filter(n => Number.isInteger(n)) : [] // নতুন
+        last_updated: String(item.last_updated || "").trim(),
+        source: String(item.source || "").trim(),
+        law_reference_link: String(item.law_reference_link || "").trim(),
+        related_ids: Array.isArray(item.related_ids) ? item.related_ids.filter(n => Number.isInteger(n)) : []
       };
       if (!normalized.question || !normalized.answer) continue;
       out.push(normalized);
@@ -164,11 +175,38 @@ document.addEventListener("DOMContentLoaded", () => {
     return out;
   };
 
-  /*************************
-   * Core Logic: filter & render
-   *************************/
+  // Check if a URL is safe to put into an <a href>
+  const isSafeHref = (url) => {
+    if (!url) return false;
+    // allow absolute http(s) and relative (/path, ./path, ../path)
+    // explicitly disallow protocol-relative '//' and schemes like javascript:, data:, vbscript:
+    const trimmed = String(url).trim().toLowerCase();
+    if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) return true;
+    if (trimmed.startsWith("/") || trimmed.startsWith("./") || trimmed.startsWith("../")) return true;
+    return false;
+  };
+
+  // Simple fallback search
+  const simpleSearchFallback = (list, keyword) => {
+    const k = String(keyword).toLowerCase().slice(0, MAX_KEYWORD_LENGTH);
+    return list.filter(item => {
+      return (
+        (item.question && item.question.toLowerCase().includes(k)) ||
+        (item.answer && item.answer.toLowerCase().includes(k)) ||
+        (item.details && item.details.toLowerCase().includes(k)) ||
+        (item.key_point && item.key_point.toLowerCase().includes(k)) ||
+        (item.law_section && item.law_section.toLowerCase().includes(k)) ||
+        (item.case_reference && item.case_reference.toLowerCase().includes(k)) ||
+        (item.tags && item.tags.join(" ").toLowerCase().includes(k)) ||
+        (item.keywords && item.keywords.join(" ").toLowerCase().includes(k))
+      );
+    });
+  };
+
+  // Apply filters and render results
   const applyFilters = () => {
-    const keyword = elements.searchBox ? elements.searchBox.value.trim() : "";
+    const keywordRaw = elements.searchBox ? elements.searchBox.value.trim() : "";
+    const keyword = String(keywordRaw).slice(0, MAX_KEYWORD_LENGTH);
     const section = elements.sectionSelect ? elements.sectionSelect.value : "";
     const year = elements.yearSelect && elements.yearSelect.value ? Number(elements.yearSelect.value) : "";
     const sort = elements.sortSelect ? elements.sortSelect.value : "relevance";
@@ -179,7 +217,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let list = DATA.slice();
 
-    // Use Fuse if available, otherwise use a simple fallback search
     if (keyword) {
       if (FUSE) {
         try {
@@ -206,24 +243,8 @@ document.addEventListener("DOMContentLoaded", () => {
     else if (sort === "az") list = [...list].sort((a, b) => a.question.localeCompare(b.question, "bn") || a.id - b.id);
     else if (sort === "section") list = [...list].sort((a, b) => a.law_section.localeCompare(b.law_section || "", "bn") || a.id - b.id);
 
-    if (elements.countDisplay) elements.countDisplay.innerText = list.length ? `${list.length} ফলাফল পাওয়া গেছে` : "কোনো ফলাফল পাওয়া যায়নি";
+    if (elements.countDisplay) elements.countDisplay.innerText = list.length ? `${list.length} ফলাফল পাওয়া গেছে` : "কোনো ফলাফল পাওয়া যায়নি";
     renderCards(list, elements.resultsWrap, keyword);
-  };
-
-    const simpleSearchFallback = (list, keyword) => {
-    const k = String(keyword).toLowerCase();
-    return list.filter(item => {
-      return (
-        (item.question && item.question.toLowerCase().includes(k)) ||
-        (item.answer && item.answer.toLowerCase().includes(k)) ||
-        (item.details && item.details.toLowerCase().includes(k)) || // নতুন
-        (item.key_point && item.key_point.toLowerCase().includes(k)) ||
-        (item.law_section && item.law_section.toLowerCase().includes(k)) ||
-        (item.case_reference && item.case_reference.toLowerCase().includes(k)) || // case_reference যোগ করা হয়েছে, যদি এটি অনুপস্থিত থাকে[...]
-        (item.tags && item.tags.join(" ").toLowerCase().includes(k)) ||
-        (item.keywords && item.keywords.join(" ").toLowerCase().includes(k)) // নতুন
-      );
-    });
   };
 
   const debouncedApply = () => {
@@ -231,9 +252,7 @@ document.addEventListener("DOMContentLoaded", () => {
     debounceTimer = setTimeout(applyFilters, 300);
   };
 
-  /*************************
-   * Rendering (DOM API only)
-   *************************/
+  // Create a simple button element
   const createButton = (text, classes = [], attrs = {}) => {
     const btn = document.createElement("button");
     btn.type = "button";
@@ -243,7 +262,9 @@ document.addEventListener("DOMContentLoaded", () => {
     return btn;
   };
 
+  // Render list of cards
   const renderCards = (list, containerEl, keyword = "") => {
+    if (!containerEl) return;
     containerEl.innerHTML = "";
     const fragment = document.createDocumentFragment();
     for (const item of list) {
@@ -252,17 +273,17 @@ document.addEventListener("DOMContentLoaded", () => {
       article.dataset.id = String(item.id);
       article.setAttribute("aria-expanded", "false");
 
+      // Header (question)
       const header = document.createElement("div");
       header.className = "card-header";
       header.dataset.action = "toggle";
       header.setAttribute("role", "button");
       header.setAttribute("tabindex", "0");
       header.setAttribute("aria-controls", `card-${item.id}-details`);
-	  
-	   // ক্রমিক নং যোগ করার জন্য নতুন অংশ
+
       const serialNoSpan = document.createElement("span");
       serialNoSpan.className = "serial-no";
-      serialNoSpan.textContent = ` ${item.serial_no || item.id}।`; // serial_no না থাকলে id ব্যবহার করবে
+      serialNoSpan.textContent = ` ${item.serial_no || item.id}।`;
       header.appendChild(serialNoSpan);
 
       const headerLabel = document.createElement("span");
@@ -272,13 +293,12 @@ document.addEventListener("DOMContentLoaded", () => {
       header.appendChild(buildHighlightedFragment(item.question, keyword));
       article.appendChild(header);
 
+      // Details (answer, meta)
       const details = document.createElement("div");
       details.className = "card-details";
       details.id = `card-${item.id}-details`;
       details.setAttribute("aria-hidden", "true");
 
-
-            // ... (existing code for answerDiv)
       const answerDiv = document.createElement("div");
       const answerLabel = document.createElement("span");
       answerLabel.className = "label label-answer";
@@ -287,7 +307,6 @@ document.addEventListener("DOMContentLoaded", () => {
       answerDiv.appendChild(buildHighlightedFragment(item.answer, keyword));
       details.appendChild(answerDiv);
 
-      // Add details (can be an optional longer explanation)
       if (item.details) {
         const detailsDiv = document.createElement("div");
         const detailsLabel = document.createElement("span");
@@ -308,39 +327,50 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const sectionDiv = document.createElement("div");
       const sectionLabel = document.createElement("span");
-sectionLabel.className = "label label-section";
-sectionLabel.textContent = "ধারা: ";
-sectionDiv.appendChild(sectionLabel);
+      sectionLabel.className = "label label-section";
+      sectionLabel.textContent = "ধারা: ";
+      sectionDiv.appendChild(sectionLabel);
       sectionDiv.appendChild(buildHighlightedFragment(item.law_section || "-", keyword));
       details.appendChild(sectionDiv);
 
       const caseDiv = document.createElement("div");
       const caseLabel = document.createElement("span");
-caseLabel.className = "label label-case";
-caseLabel.textContent = "মামলা: ";
-caseDiv.appendChild(caseLabel);
+      caseLabel.className = "label label-case";
+      caseLabel.textContent = "মামলা: ";
+      caseDiv.appendChild(caseLabel);
       caseDiv.appendChild(buildHighlightedFragment(item.case_reference || "কোনো মামলা রেফারেন্স নেই", keyword));
       details.appendChild(caseDiv);
 
-      // Updated meta information
+      // Meta area (DOM nodes to avoid HTML injection)
       const meta = document.createElement("div");
       meta.className = "meta";
-      let metaContent = `ট্যাগ: ${item.tags.map(t => `#${t}`).join(" · ")}`;
+
+      // tags
+      const tagsSpan = document.createElement("span");
+      tagsSpan.textContent = "ট্যাগ: ";
+      meta.appendChild(tagsSpan);
+      const tagsList = document.createElement("span");
+      tagsList.textContent = item.tags.map(t => `#${t}`).join(" · ") || "N/A";
+      meta.appendChild(tagsList);
+
+      // keywords (if any)
       if (item.keywords && item.keywords.length) {
-        metaContent += ` |শিক্ষা: ${item.keywords.map(k => `#${k}`).join(" · ")}`;
+        const kw = document.createElement("div");
+        kw.textContent = `শিক্ষা: ${item.keywords.map(k => `#${k}`).join(" · ")}`;
+        meta.appendChild(kw);
       }
-      metaContent += ` | সাল: ${item.year || "N/A"}`;
-      if (item.source) {
-        metaContent += ` | উৎস: ${escapeHTML(item.source)}`;
-      }
-      if (item.last_updated) {
-        metaContent += ` | শেষ আপডেট: ${escapeHTML(item.last_updated)}`;
-      }
-      meta.textContent = metaContent;
+
+      // year, source, last_updated
+      const info = document.createElement("div");
+      info.textContent = `সাল: ${item.year || "N/A"}`;
+      if (item.source) info.textContent += ` | উৎস: ${item.source}`;
+      if (item.last_updated) info.textContent += ` | শেষ আপডেট: ${item.last_updated}`;
+      meta.appendChild(info);
+
       details.appendChild(meta);
 
-      // Law Reference Link
-      if (item.law_reference_link) {
+      // law reference link (sanitize before adding)
+      if (isSafeHref(item.law_reference_link)) {
         const linkDiv = document.createElement("div");
         const linkBold = document.createElement("b");
         linkBold.textContent = "আরো জানতে: ";
@@ -354,7 +384,7 @@ caseDiv.appendChild(caseLabel);
         details.appendChild(linkDiv);
       }
 
-      // Related IDs (as links or just text)
+      // related ids
       if (item.related_ids && item.related_ids.length) {
         const relatedDiv = document.createElement("div");
         const relatedBold = document.createElement("b");
@@ -362,11 +392,11 @@ caseDiv.appendChild(caseLabel);
         relatedDiv.appendChild(relatedBold);
         item.related_ids.forEach((relId, index) => {
           const relatedLink = document.createElement("a");
-          relatedLink.href = `?id=${relId}`; // Link to the specific card
+          // use query param but encode the id as integer
+          relatedLink.href = `?id=${encodeURIComponent(String(relId))}`;
           relatedLink.textContent = `ID ${relId}`;
-          relatedLink.onclick = (e) => {
+          relatedLink.addEventListener('click', (e) => {
             e.preventDefault();
-            // Scroll to and highlight the related card (if it's on the same page)
             const targetCard = document.querySelector(`.card[data-id="${relId}"]`);
             if (targetCard) {
               targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -376,19 +406,17 @@ caseDiv.appendChild(caseLabel);
               if (det) det.setAttribute('aria-hidden', 'false');
               setTimeout(() => targetCard.classList.remove('card-highlighted'), 2500);
             } else {
-              // If not on the current page, navigate
-              window.location.href = `?id=${relId}`;
+              // fallback to navigate with safe param
+              window.location.href = `?id=${encodeURIComponent(String(relId))}`;
             }
-          };
+          });
           relatedDiv.appendChild(relatedLink);
-          if (index < item.related_ids.length - 1) {
-            relatedDiv.appendChild(document.createTextNode(", "));
-          }
+          if (index < item.related_ids.length - 1) relatedDiv.appendChild(document.createTextNode(", "));
         });
         details.appendChild(relatedDiv);
       }
-      
 
+      // actions: bookmark, share, speak
       const actions = document.createElement("div");
       actions.className = "actions";
 
@@ -419,7 +447,9 @@ caseDiv.appendChild(caseLabel);
     containerEl.appendChild(fragment);
   };
 
+  // Render bookmarks panel
   const renderBookmarks = () => {
+    if (!elements.bookmarksWrap) return;
     const bookmarkedItems = DATA.filter(d => bookmarks.includes(d.id));
     if (bookmarkedItems.length === 0) {
       elements.bookmarksWrap.innerHTML = "";
@@ -429,26 +459,23 @@ caseDiv.appendChild(caseLabel);
       elements.bookmarksWrap.appendChild(empty);
       return;
     }
-    renderCards(bookmarkedItems, elements.bookmarksWrap, elements.searchBox.value.trim());
+    renderCards(bookmarkedItems, elements.bookmarksWrap, elements.searchBox ? elements.searchBox.value.trim() : "");
   };
 
-  /*************************
-   * Actions & Event Handlers
-   *************************/
+  // Click handler for cards (toggle, bookmark, share, speak)
   const handleCardClick = (event, containerEl) => {
     const actionTarget = event.target.closest("[data-action]");
-    // Support clicking on .card-header (it has data-action="toggle")
     const headerTarget = event.target.closest(".card-header");
     const target = actionTarget || headerTarget;
     if (!target) return;
 
     const card = target.closest(".card");
     if (!card) return;
-    const action = target.dataset.action || target.dataset.action === undefined ? target.dataset.action || "toggle" : null;
+    const action = target.dataset.action || (headerTarget ? "toggle" : null);
     const id = Number(card.dataset.id);
     if (!Number.isInteger(id)) return;
 
-    if (action === "toggle" || target.classList.contains("card-header") || target.matches(".card-header")) {
+    if (action === "toggle") {
       const isExpanded = card.classList.contains("expanded");
       $$(".card").forEach(c => {
         c.classList.remove("expanded");
@@ -466,18 +493,12 @@ caseDiv.appendChild(caseLabel);
     }
 
     const item = DATA.find(d => d.id === id);
-
-    if (action === "bookmark") {
-      toggleBookmark(id);
-    } else if (action === "share") {
-      const linkToCopy = target.dataset.link;
-      safeCopyToClipboard(linkToCopy);
-    } else if (action === "speak") {
-      if (item) speakText(item.answer);
-    }
+    if (action === "bookmark") toggleBookmark(id);
+    else if (action === "share") safeCopyToClipboard(target.dataset.link);
+    else if (action === "speak" && item) speakText(item.answer);
   };
 
-  // Bookmarks contain only IDs (array of ints)
+  // Toggle bookmark and persist
   const toggleBookmark = (id) => {
     if (!Number.isInteger(id)) return;
     const idx = bookmarks.indexOf(id);
@@ -499,7 +520,7 @@ caseDiv.appendChild(caseLabel);
     }
     applyFilters();
     renderBookmarks();
-    // update visible buttons' aria-pressed/text
+    // Update visible bookmark buttons
     $$('button[data-action="bookmark"]').forEach(btn => {
       const bid = Number(btn.dataset.id);
       const pressed = bookmarks.includes(bid);
@@ -510,18 +531,17 @@ caseDiv.appendChild(caseLabel);
     });
   };
 
-  /*************************
-   * Clipboard (modern + fallback safe)
-   *************************/
+  // Clipboard (modern + fallback)
   const safeCopyToClipboard = async (text) => {
     try {
+      const payload = String(text).slice(0, 2000); // limit copied length
       if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(String(text));
+        await navigator.clipboard.writeText(payload);
         showToast("লিংক কপি হয়েছে!");
         return;
       }
       const ta = document.createElement("textarea");
-      ta.value = String(text);
+      ta.value = payload;
       ta.style.position = "fixed";
       ta.style.left = "-9999px";
       ta.style.top = "0";
@@ -533,13 +553,11 @@ caseDiv.appendChild(caseLabel);
       showToast(ok ? "লিংক কপি হয়েছে!" : "কপি করা সম্ভব হয়নি");
     } catch (e) {
       console.warn("Copy failed: ", e);
-      showToast("কপি করা সম্ভব হয়েছে না");
+      showToast("কপি করা সম্ভব হয়নি");
     }
   };
 
-  /*************************
-   * Speech (safe handling)
-   *************************/
+  // Speech (if browser supports)
   const populateVoiceList = () => {
     if (typeof speechSynthesis === 'undefined') return;
     voices = speechSynthesis.getVoices() || [];
@@ -570,9 +588,7 @@ caseDiv.appendChild(caseLabel);
     }
   };
 
-  /*************************
-   * Responsive Element Placement
-   *************************/
+  // Move controls for mobile/desktop
   const manageControlPlacement = () => {
     const isMobile = window.innerWidth < 960;
     try {
@@ -588,9 +604,7 @@ caseDiv.appendChild(caseLabel);
     }
   };
 
-  /*************************
-   * Setup event listeners
-   *************************/
+  // Attach event listeners
   const setupEventListeners = () => {
     if (elements.themeToggle) {
       elements.themeToggle.addEventListener("click", () => {
@@ -651,9 +665,6 @@ caseDiv.appendChild(caseLabel);
       if (elements.showBookmarksOnlyCheck) elements.showBookmarksOnlyCheck.addEventListener(evt, applyFilters);
     });
 
-    // Keep a generic change listener on tagsWrap as a fallback.
-    // Note: individual tag inputs also get a change handler (created during init)
-    // which stops propagation to avoid double-calling applyFilters.
     if (elements.tagsWrap) elements.tagsWrap.addEventListener("change", (e) => { if (e.target && e.target.name === "tags") applyFilters(); });
 
     if (elements.clearFiltersBtn) {
@@ -670,7 +681,6 @@ caseDiv.appendChild(caseLabel);
 
     if (elements.resultsWrap) {
       elements.resultsWrap.addEventListener("click", (e) => handleCardClick(e, elements.resultsWrap));
-      // keyboard support for toggling header (Enter / Space)
       elements.resultsWrap.addEventListener("keydown", (e) => {
         const hdr = e.target.closest(".card-header");
         if (!hdr) return;
@@ -683,41 +693,34 @@ caseDiv.appendChild(caseLabel);
     if (elements.bookmarksWrap) elements.bookmarksWrap.addEventListener("click", (e) => handleCardClick(e, elements.bookmarksWrap));
   };
 
-  /*************************
-   * Highlight card from URL (if id param present)
-   *************************/
+  // If URL has id param, open and highlight that card (safer)
   const highlightCardFromURL = () => {
     try {
-      const cardId = getQueryParam('id');
-      if (!cardId) return;
-      const cardElement = document.querySelector(`.card[data-id="${cardId}"]`);
-      if (!cardElement) return;
-      cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      cardElement.classList.add('expanded', 'card-highlighted');
-      cardElement.setAttribute('aria-expanded', 'true');
-      const det = cardElement.querySelector('.card-details');
-      if (det) det.setAttribute('aria-hidden', 'false');
-      setTimeout(() => cardElement.classList.remove('card-highlighted'), 2500);
+      const rawId = getQueryParam('id');
+      if (!rawId) return;
+
+      // accept only integer ids (protect against selector injection)
+      const id = parseInt(rawId, 10);
+      if (!Number.isInteger(id)) return;
+
+      // find by data-id using dataset comparison (avoid injecting into selector)
+      const cards = document.querySelectorAll('.card');
+      for (const cardEl of cards) {
+        if (String(cardEl.dataset.id) === String(id)) {
+          cardEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          cardEl.classList.add('expanded', 'card-highlighted');
+          cardEl.setAttribute('aria-expanded', 'true');
+          const det = cardEl.querySelector('.card-details');
+          if (det) det.setAttribute('aria-hidden', 'false');
+          setTimeout(() => cardEl.classList.remove('card-highlighted'), 2500);
+          break;
+        }
+      }
     } catch (e) { console.warn(e); }
   };
 
-  /*************************
-   * Initialization
-   *************************/
-  async function init() { 
-	const url = new URL(window.location.href);
-	// ✅ প্রথমবার নিজের ব্রাউজারে খোলা হলে (sessionStorage এ flag নেই)
-	/*if (!sessionStorage.getItem("visited_before")) {
-    sessionStorage.setItem("visited_before", "true");
-	*/
-  if (url.searchParams.has("id")) { 
-   
-   // যদি শেয়ার লিংক থেকে না খোলা হয় তবে id মুছে দিন
- /* url.searchParams.delete("id");
-      history.replaceState(null, "", url.toString());
-    } */
-  
-    }
+  // Initialization
+  async function init() {
     document.body.classList.toggle("dark", theme === "dark");
     if (elements.themeToggle) elements.themeToggle.textContent = theme === "dark" ? "☀️ Light" : "🌙 Dark";
 
@@ -726,28 +729,24 @@ caseDiv.appendChild(caseLabel);
       speechSynthesis.onvoiceschanged = populateVoiceList;
     }
 
-    // load data.json (if missing, handle gracefully)
+    // load data.json
     try {
       const res = await fetch('./data.json', { cache: "no-cache" });
       if (!res.ok) throw new Error("HTTP " + res.status);
       const raw = await res.json();
       const validated = validateDataArray(raw);
-      if (!validated.length) {
-        if (elements.countDisplay) elements.countDisplay.innerText = "ডেটা খালি বা অকার্যকর।";
-        DATA = [];
-      } else {
-        DATA = validated;
-      }
+      DATA = validated.length ? validated : [];
+      if (!DATA.length && elements.countDisplay) elements.countDisplay.innerText = "ডেটা খালি বা অকার্যকর।";
     } catch (err) {
       console.error("Could not load data:", err);
       if (elements.countDisplay) elements.countDisplay.innerText = "ডেটা লোড করতে ব্যর্থ। (data.json ফাইল আছে কি দেখুন)";
       DATA = [];
     }
 
-    // Setup Fuse only if available and DATA non-empty
+    // init Fuse if available
     if (typeof Fuse !== 'undefined' && Array.isArray(DATA) && DATA.length > 0) {
       try {
-               FUSE = new Fuse(DATA, {
+        FUSE = new Fuse(DATA, {
           keys: ['question', 'answer', 'details', 'key_point', 'law_section', 'case_reference', 'tags', 'keywords'],
           includeScore: true,
           threshold: 0.4
@@ -760,14 +759,18 @@ caseDiv.appendChild(caseLabel);
       FUSE = null;
     }
 
-    // populate UI filters
+    // populate filters (safe DOM creation)
     try {
       const uniqueSections = Array.from(new Set(DATA.map(d => d.law_section))).filter(s => s).sort();
       const uniqueYears = Array.from(new Set(DATA.map(d => d.year).filter(Boolean))).sort((a, b) => b - a);
       const uniqueTags = Array.from(new Set(DATA.flatMap(d => d.tags))).filter(t => t).sort();
 
       if (elements.sectionSelect) {
-        elements.sectionSelect.innerHTML = `<option value="">সব ধারা</option>`;
+        elements.sectionSelect.innerHTML = "";
+        const defaultOpt = document.createElement("option");
+        defaultOpt.value = "";
+        defaultOpt.textContent = "সব ধারা";
+        elements.sectionSelect.appendChild(defaultOpt);
         for (const s of uniqueSections) {
           const opt = document.createElement("option");
           opt.value = s;
@@ -777,7 +780,11 @@ caseDiv.appendChild(caseLabel);
       }
 
       if (elements.yearSelect) {
-        elements.yearSelect.innerHTML = `<option value="">সব সাল</option>`;
+        elements.yearSelect.innerHTML = "";
+        const defaultOpt = document.createElement("option");
+        defaultOpt.value = "";
+        defaultOpt.textContent = "সব সাল";
+        elements.yearSelect.appendChild(defaultOpt);
         for (const y of uniqueYears) {
           const opt = document.createElement("option");
           opt.value = y;
@@ -795,9 +802,7 @@ caseDiv.appendChild(caseLabel);
           cb.type = "checkbox";
           cb.name = "tags";
           cb.value = tag;
-          // New: enforce single-selection behavior for tags
-          // When a checkbox is checked, uncheck all other tag checkboxes.
-          // We stop propagation so the parent change listener doesn't call applyFilters twice.
+          // single-select behavior: when one tag checked, uncheck others
           cb.addEventListener('change', (e) => {
             try {
               e.stopPropagation();
@@ -829,33 +834,27 @@ caseDiv.appendChild(caseLabel);
     manageControlPlacement();
     applyFilters();
     renderBookmarks();
-    // Give DOM a moment then highlight if id present
     setTimeout(highlightCardFromURL, 200);
 
-  if ("serviceWorker" in navigator) {
-		navigator.serviceWorker.register('/Deed/sw.js')
+    // register service worker if present
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register('./sw.js')
         .then(registration => console.log('Service Worker registered with scope:', registration.scope))
         .catch(error => console.error('Service Worker registration failed:', error));
-}
+    }
   }
 
   init();
 });
 
-// ================================
-// সহজ গ্লোবাল ভিজিটর কাউন্টার (CountAPI)
-// ================================
+// Visitor counter (optional; external script)
 (async function () {
   const counterEl = document.getElementById("visitorCounter");
   if (!counterEl) return;
-
   try {
-    // আপনার ডিপ্লয় করা Web App URL এখানে বসান 👇
     const apiUrl = "https://script.google.com/macros/s/AKfycbzTXuSV_khlAGHSpmXOk1YXd2zRURRzqhUVT2ckN9w2Fz-w39Z_CdiZ2u8nbtKErWIzeg/exec";
-
     const res = await fetch(apiUrl);
     if (!res.ok) throw new Error("Network error");
-
     const data = await res.json();
     counterEl.textContent = data.value;
   } catch (e) {
