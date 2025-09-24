@@ -243,8 +243,9 @@ document.addEventListener("DOMContentLoaded", () => {
     else if (sort === "az") list = [...list].sort((a, b) => a.question.localeCompare(b.question, "bn") || a.id - b.id);
     else if (sort === "section") list = [...list].sort((a, b) => a.law_section.localeCompare(b.law_section || "", "bn") || a.id - b.id);
 
-    if (elements.countDisplay) elements.countDisplay.innerText = list.length ? `${list.length} ফলাফল পাওয়া গেছে` : "কোনো ফলাফল পাওয়া যায়নি";
-    renderCards(list, elements.resultsWrap, keyword);
+   if (elements.countDisplay) elements.countDisplay.innerText = list.length ? `${list.length} ফলাফল পাওয়া গেছে` : "কোনো ফলাফল পাওয়া যায়নি";
+    currentPage = 1; // reset pagination when filters/search change
+    renderWithPagination(list, elements.resultsWrap, keyword);
   };
 
   const debouncedApply = () => {
@@ -446,6 +447,42 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     containerEl.appendChild(fragment);
   };
+  
+  
+  // === Pagination Settings ===
+let PAGE_SIZE = 10;   // প্রতি পেজে কয়টা আইটেম দেখাবেন
+let currentPage = 1;  // শুরু পেজ
+
+// Helper: Get paginated data
+function getPagedData(list) {
+  const start = 0;
+  const end = currentPage * PAGE_SIZE;
+  return list.slice(start, end);
+}
+
+// Render with pagination
+function renderWithPagination(list, containerEl, keyword = "") {
+  if (!containerEl) return;
+  containerEl.innerHTML = "";
+
+  // Get current slice
+  const pagedList = getPagedData(list);
+  renderCards(pagedList, containerEl, keyword);
+
+  // If more data available → show Load More button
+  if (pagedList.length < list.length) {
+    const loadMoreBtn = document.createElement("button");
+    loadMoreBtn.textContent = "⬇️ আরো দেখুন";
+    loadMoreBtn.className = "btn-loadmore";
+    loadMoreBtn.style.display = "block";
+    loadMoreBtn.style.margin = "16px auto";
+    loadMoreBtn.onclick = () => {
+      currentPage++;
+      renderWithPagination(list, containerEl, keyword);
+    };
+    containerEl.appendChild(loadMoreBtn);
+  }
+}
 
   // Render bookmarks panel
   const renderBookmarks = () => {
