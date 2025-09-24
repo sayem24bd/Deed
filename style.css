@@ -283,3 +283,18 @@ body.dark .label { background: #1e293b; color: #60a5fa; }
 .label-keywords { color: #db2777; }   /* গোলাপি */
 .label-section  { color: #0891b2; }   /* সায়ান */
 .label-case     { color: #dc2626; }   /* লাল */
+
+.btn-loadmore {
+  background: #0d6efd;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+.btn-loadmore:hover {
+  background: #0b5ed7;
+}
