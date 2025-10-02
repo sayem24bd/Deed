@@ -22,11 +22,15 @@ document.addEventListener("DOMContentLoaded", () => {
   let theme = localStorage.getItem("theme") || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
   let debounceTimer;
   let voices = [];
-
+  
+  let PAGE_SIZE = 10;       // প্রতি পেজে কয়টা আইটেম
+  let currentPage = 1;      // বর্তমান পেজ
+  let currentChunk = 1;     // কোন data ফাইল লোড হয়েছে
+  const MAX_CHUNKS = 2;     // মোট কয়টা data ফাইল আছে (data-1.json, data-2.json)
+  
   // DOM shortcuts
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => Array.from(document.querySelectorAll(sel));
-
   const elements = {
     themeToggle: $("#themeToggle"),
     installBtn: $("#installBtn"),
@@ -203,7 +207,58 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
-  // Apply filters and render results
+  // NEW FUNCTION: Takes a list and applies all current filters and sorting.
+  function filterAndSortList(listToProcess) {
+      const keywordRaw = elements.searchBox ? elements.searchBox.value.trim() : "";
+      const keyword = String(keywordRaw).slice(0, MAX_KEYWORD_LENGTH);
+      const section = elements.sectionSelect ? elements.sectionSelect.value : "";
+      const year = elements.yearSelect && elements.yearSelect.value ? Number(elements.yearSelect.value) : "";
+      const sort = elements.sortSelect ? elements.sortSelect.value : "relevance";
+      const tags = elements.tagsWrap ? Array.from(elements.tagsWrap.querySelectorAll('input:checked')).map(c => c.value) : [];
+      const showBookmarksOnly = elements.showBookmarksOnlyCheck && elements.showBookmarksOnlyCheck.checked;
+      
+      let list;
+
+      // Search is global: if keyword exists, we search the whole DATA set via FUSE,
+      // then filter those results to only include items that are also in our listToProcess.
+      if (keyword) {
+          let allSearchResults;
+          if (FUSE) {
+              try {
+                  allSearchResults = FUSE.search(keyword).map(r => r.item);
+              } catch (e) {
+                  console.warn("Fuse search failed:", e);
+                  allSearchResults = simpleSearchFallback(DATA, keyword);
+              }
+          } else {
+              allSearchResults = simpleSearchFallback(DATA, keyword);
+          }
+          
+          const idsToProcess = new Set(listToProcess.map(item => item.id));
+          list = allSearchResults.filter(item => idsToProcess.has(item.id));
+      } else {
+          // No keyword, so just start with the list we were given.
+          list = listToProcess.slice();
+      }
+      
+      // Apply standard filters
+      list = list.filter(d => {
+        const okSection = !section || d.law_section === section;
+        const okYear = !year || Number(d.year) === Number(year);
+        const okTags = tags.length === 0 || tags.every(t => d.tags.includes(t));
+        const okBookmark = !showBookmarksOnly || bookmarks.includes(d.id);
+        return okSection && okYear && okTags && okBookmark;
+      });
+
+      // Apply sorting
+      if (sort === "newest") list = [...list].sort((a, b) => (b.year || 0) - (a.year || 0));
+      else if (sort === "az") list = [...list].sort((a, b) => a.question.localeCompare(b.question, "bn") || a.id - b.id);
+      else if (sort === "section") list = [...list].sort((a, b) => a.law_section.localeCompare(b.law_section || "", "bn") || a.id - b.id);
+
+      return list;
+  }
+
+  // MODIFIED applyFilters: Now it's just a controller.
   const applyFilters = () => {
     const keywordRaw = elements.searchBox ? elements.searchBox.value.trim() : "";
     const keyword = String(keywordRaw).slice(0, MAX_KEYWORD_LENGTH);
@@ -215,36 +270,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     setQueryParams({ q: keyword, section, year, tags, sort, bookmarks: showBookmarksOnly ? 'true' : '' });
 
-    let list = DATA.slice();
+    // It always operates on the full global DATA
+    const list = filterAndSortList(DATA);
 
-    if (keyword) {
-      if (FUSE) {
-        try {
-          const results = FUSE.search(keyword);
-          list = results.map(r => r.item);
-        } catch (e) {
-          console.warn("Fuse search failed:", e);
-          list = simpleSearchFallback(list, keyword);
-        }
-      } else {
-        list = simpleSearchFallback(list, keyword);
-      }
-    }
-
-    list = list.filter(d => {
-      const okSection = !section || d.law_section === section;
-      const okYear = !year || Number(d.year) === Number(year);
-      const okTags = tags.length === 0 || tags.every(t => d.tags.includes(t));
-      const okBookmark = !showBookmarksOnly || bookmarks.includes(d.id);
-      return okSection && okYear && okTags && okBookmark;
-    });
-
-    if (sort === "newest") list = [...list].sort((a, b) => (b.year || 0) - (a.year || 0));
-    else if (sort === "az") list = [...list].sort((a, b) => a.question.localeCompare(b.question, "bn") || a.id - b.id);
-    else if (sort === "section") list = [...list].sort((a, b) => a.law_section.localeCompare(b.law_section || "", "bn") || a.id - b.id);
-
-   if (elements.countDisplay) elements.countDisplay.innerText = list.length ? `${list.length} ফলাফল পাওয়া গেছে` : "কোনো ফলাফল পাওয়া যায়নি";
-    currentPage = 1; // reset pagination when filters/search change
+    if (elements.countDisplay) elements.countDisplay.innerText = list.length ? `${list.length} ফলাফল পাওয়া গেছে` : "কোনো ফলাফল পাওয়া যায়নি";
+    currentPage = 1; // Reset pagination
     renderWithPagination(list, elements.resultsWrap, keyword);
   };
 
@@ -266,7 +296,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Render list of cards
   const renderCards = (list, containerEl, keyword = "") => {
     if (!containerEl) return;
-    containerEl.innerHTML = "";
+    // containerEl.innerHTML = ""; // This is handled by renderWithPagination now
     const fragment = document.createDocumentFragment();
     for (const item of list) {
       const article = document.createElement("article");
@@ -447,42 +477,87 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     containerEl.appendChild(fragment);
   };
-  
-  
+    
   // === Pagination Settings ===
-let PAGE_SIZE = 10;   // প্রতি পেজে কয়টা আইটেম দেখাবেন
-let currentPage = 1;  // শুরু পেজ
-
-// Helper: Get paginated data
-function getPagedData(list) {
-  const start = 0;
-  const end = currentPage * PAGE_SIZE;
-  return list.slice(start, end);
-}
-
-// Render with pagination
-function renderWithPagination(list, containerEl, keyword = "") {
-  if (!containerEl) return;
-  containerEl.innerHTML = "";
-
-  // Get current slice
-  const pagedList = getPagedData(list);
-  renderCards(pagedList, containerEl, keyword);
-
-  // If more data available → show Load More button
-  if (pagedList.length < list.length) {
-    const loadMoreBtn = document.createElement("button");
-    loadMoreBtn.textContent = "⬇️ আরো দেখুন";
-    loadMoreBtn.className = "btn-loadmore";
-    loadMoreBtn.style.display = "block";
-    loadMoreBtn.style.margin = "16px auto";
-    loadMoreBtn.onclick = () => {
-      currentPage++;
-      renderWithPagination(list, containerEl, keyword);
-    };
-    containerEl.appendChild(loadMoreBtn);
+  // Helper: Get paginated data
+  function getPagedData(list) {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const end = currentPage * PAGE_SIZE;
+    return list.slice(start, end);
   }
-}
+
+  // MODIFIED renderWithPagination to have the new button logic.
+  function renderWithPagination(list, containerEl, keyword = "") {
+      if (!containerEl) return;
+      
+      // For page 1, clear the container. For subsequent pages, append.
+      if (currentPage === 1) {
+          containerEl.innerHTML = "";
+      }
+
+      // Remove any existing "load more" button before rendering new cards
+      const existingBtn = containerEl.querySelector(".btn-loadmore");
+      if (existingBtn) existingBtn.remove();
+      
+      const pagedList = getPagedData(list);
+      renderCards(pagedList, containerEl, keyword);
+
+      if ((currentPage * PAGE_SIZE) < list.length || currentChunk < MAX_CHUNKS) {
+          const loadMoreBtn = document.createElement("button");
+          loadMoreBtn.textContent = "⬇️ আরো দেখুন";
+          loadMoreBtn.className = "btn-loadmore";
+          loadMoreBtn.style.display = "block";
+          loadMoreBtn.style.margin = "16px auto";
+      
+          loadMoreBtn.onclick = async () => {
+              const currentKeyword = elements.searchBox ? elements.searchBox.value.trim().slice(0, MAX_KEYWORD_LENGTH) : "";
+              
+              // Case 1: More items in the currently rendered list. Just advance the page.
+              if ((currentPage * PAGE_SIZE) < list.length) {
+                  currentPage++;
+                  // We call renderWithPagination again, but it will just add the next page of cards
+                  // because we are only incrementing the page number. The `list` remains the same.
+                  renderWithPagination(list, containerEl, currentKeyword);
+                  return;
+              }
+
+              // Case 2: End of current list, but more chunks are available to load.
+              if (currentChunk < MAX_CHUNKS) {
+                  const tags = elements.tagsWrap ? Array.from(elements.tagsWrap.querySelectorAll('input:checked')).map(c => c.value) : [];
+                  const newChunkData = await loadMoreData(); // This updates global DATA and FUSE
+
+                  if (newChunkData.length > 0) {
+                      let listToShow;
+                      // If a tag is selected, we show ALL filtered data combined.
+                      if (tags.length > 0) {
+                          listToShow = filterAndSortList(DATA);
+                      } else {
+                          // Otherwise, default behavior: show only the new chunk's filtered data.
+                          listToShow = filterAndSortList(newChunkData);
+                      }
+                      
+                      // Update total count display based on the complete filtered list
+                      const totalFilteredList = filterAndSortList(DATA);
+                      if (elements.countDisplay) elements.countDisplay.innerText = totalFilteredList.length ? `${totalFilteredList.length} ফলাফল পাওয়া গেছে` : "কোনো ফলাফল পাওয়া যায়নি";
+                      
+                      // Reset page and render the determined list from its beginning
+                      currentPage = 1;
+                      renderWithPagination(listToShow, containerEl, currentKeyword);
+                  } else {
+                      // If the new chunk was empty, remove the button
+                      loadMoreBtn.remove();
+                  }
+                  return;
+              }
+
+              // Case 3: No more items and no more chunks.
+              showToast("সব ডেটা লোড হয়ে গেছে এবং দেখানো হয়েছে ✅");
+              loadMoreBtn.remove();
+          };
+          containerEl.appendChild(loadMoreBtn);
+      }
+  }
+
 
   // Render bookmarks panel
   const renderBookmarks = () => {
@@ -496,6 +571,8 @@ function renderWithPagination(list, containerEl, keyword = "") {
       elements.bookmarksWrap.appendChild(empty);
       return;
     }
+    // For bookmarks, we reset pagination and show all of them
+    currentPage = 1;
     renderCards(bookmarkedItems, elements.bookmarksWrap, elements.searchBox ? elements.searchBox.value.trim() : "");
   };
 
@@ -514,17 +591,16 @@ function renderWithPagination(list, containerEl, keyword = "") {
 
     if (action === "toggle") {
       const isExpanded = card.classList.contains("expanded");
-      $$(".card").forEach(c => {
-        c.classList.remove("expanded");
-        c.setAttribute("aria-expanded", "false");
-        const det = c.querySelector(".card-details");
-        if (det) det.setAttribute("aria-hidden", "true");
-      });
       if (!isExpanded) {
-        card.classList.add("expanded");
-        card.setAttribute("aria-expanded", "true");
-        const det = card.querySelector(".card-details");
-        if (det) det.setAttribute("aria-hidden", "false");
+          card.classList.add("expanded");
+          card.setAttribute("aria-expanded", "true");
+          const det = card.querySelector(".card-details");
+          if (det) det.setAttribute("aria-hidden", "false");
+      } else {
+          card.classList.remove("expanded");
+          card.setAttribute("aria-expanded", "false");
+          const det = card.querySelector(".card-details");
+          if (det) det.setAttribute("aria-hidden", "true");
       }
       return;
     }
@@ -756,6 +832,60 @@ function renderWithPagination(list, containerEl, keyword = "") {
     } catch (e) { console.warn(e); }
   };
 
+  // Data loading functions
+  // MODIFIED loadDataChunk to remove side effects of rendering
+  async function loadDataChunk(chunkNumber) {
+    try {
+      const res = await fetch(`data/data-${chunkNumber}.json`, { cache: "no-cache" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const raw = await res.json();
+      const validated = validateDataArray(raw);
+      DATA = DATA.concat(validated);
+      console.log(`✅ data-${chunkNumber}.json লোড হয়েছে (${validated.length} রেকর্ড)`);
+      return validated; // Return only the new data
+    } catch (err) {
+      console.error(`❌ data-${chunkNumber}.json লোড ব্যর্থ:`, err);
+      if(elements.countDisplay) elements.countDisplay.innerText = "ডেটা লোড করা যায়নি।";
+      return [];
+    }
+  }
+
+  // MODIFIED loadMoreData to re-init Fuse
+  async function loadMoreData() {
+      if (currentChunk < MAX_CHUNKS) {
+          currentChunk++;
+          const newChunk = await loadDataChunk(currentChunk);
+          
+          // Re-initialize Fuse with the newly expanded DATA array
+          if (typeof Fuse !== 'undefined' && newChunk.length > 0) {
+              try {
+                  FUSE = new Fuse(DATA, {
+                      keys: [
+                          { name: 'question', weight: 0.5 },
+                          { name: 'answer', weight: 0.3 },
+                          { name: 'tags', weight: 0.1 },
+                          { name: 'keywords', weight: 0.1 }
+                      ],
+                      includeScore: false,
+                      threshold: 0.3,
+                      minMatchCharLength: 2,
+                      ignoreLocation: true,
+                      useExtendedSearch: false
+                  });
+                  console.log("Fuse.js সফলভাবে আপডেট হয়েছে।");
+              } catch (e) {
+                  console.warn("Could not update Fuse:", e);
+                  FUSE = null;
+              }
+          }
+          return newChunk;
+      } else {
+          showToast("সব ডেটা লোড হয়ে গেছে ✅");
+          return [];
+      }
+  }
+
+
   // Initialization
   async function init() {
     document.body.classList.toggle("dark", theme === "dark");
@@ -766,37 +896,33 @@ function renderWithPagination(list, containerEl, keyword = "") {
       speechSynthesis.onvoiceschanged = populateVoiceList;
     }
 
-    // load data.json
-    try {
-      const res = await fetch('./data.json', { cache: "no-cache" });
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const raw = await res.json();
-      const validated = validateDataArray(raw);
-      DATA = validated.length ? validated : [];
-      if (!DATA.length && elements.countDisplay) elements.countDisplay.innerText = "ডেটা খালি বা অকার্যকর।";
-    } catch (err) {
-      console.error("Could not load data:", err);
-      if (elements.countDisplay) elements.countDisplay.innerText = "ডেটা লোড করতে ব্যর্থ। (data.json ফাইল আছে কি দেখুন)";
-      DATA = [];
-    }
+    // প্রথম ডেটা চাঙ্ক লোড করুন
+    await loadDataChunk(currentChunk);
 
-    // init Fuse if available
+    // Fuse.js search চালু করুন (যদি ডেটা থাকে)
     if (typeof Fuse !== 'undefined' && Array.isArray(DATA) && DATA.length > 0) {
-      try {
-        FUSE = new Fuse(DATA, {
-          keys: ['question', 'answer', 'details', 'key_point', 'law_section', 'case_reference', 'tags', 'keywords'],
-          includeScore: true,
-          threshold: 0.4
-        });
-      } catch (e) {
-        console.warn("Could not initialize Fuse:", e);
-        FUSE = null;
-      }
-    } else {
-      FUSE = null;
+        try {
+            FUSE = new Fuse(DATA, {
+                keys: [
+                    { name: 'question', weight: 0.5 },
+                    { name: 'answer', weight: 0.3 },
+                    { name: 'tags', weight: 0.1 },
+                    { name: 'keywords', weight: 0.1 }
+                ],
+                includeScore: false,
+                threshold: 0.3,
+                minMatchCharLength: 2,
+                ignoreLocation: true,
+                useExtendedSearch: false
+            });
+            console.log("Fuse.js সফলভাবে চালু হয়েছে।");
+        } catch (e) {
+            console.warn("Could not initialize Fuse:", e);
+            FUSE = null;
+        }
     }
 
-    // populate filters (safe DOM creation)
+    // ফিল্টার অপশনগুলো তৈরি করুন
     try {
       const uniqueSections = Array.from(new Set(DATA.map(d => d.law_section))).filter(s => s).sort();
       const uniqueYears = Array.from(new Set(DATA.map(d => d.year).filter(Boolean))).sort((a, b) => b - a);
@@ -839,15 +965,12 @@ function renderWithPagination(list, containerEl, keyword = "") {
           cb.type = "checkbox";
           cb.name = "tags";
           cb.value = tag;
-          // single-select behavior: when one tag checked, uncheck others
           cb.addEventListener('change', (e) => {
             try {
               e.stopPropagation();
               if (cb.checked) {
                 const others = Array.from(elements.tagsWrap.querySelectorAll('input[name="tags"]'));
-                others.forEach(other => {
-                  if (other !== cb) other.checked = false;
-                });
+                others.forEach(other => { if (other !== cb) other.checked = false; });
               }
             } catch (err) {
               console.warn("Tag single-select handler error:", err);
@@ -867,13 +990,18 @@ function renderWithPagination(list, containerEl, keyword = "") {
       console.warn("Could not render filter panel:", e);
     }
 
+    // সব event listener সেট করুন
     setupEventListeners();
     manageControlPlacement();
+    
+    // Perform the initial render
     applyFilters();
     renderBookmarks();
+
+    // URL থেকে নির্দিষ্ট কার্ড হাইলাইট করুন
     setTimeout(highlightCardFromURL, 200);
 
-    // register service worker if present
+    // সার্ভিস ওয়ার্কার রেজিস্টার করুন
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register('./sw.js')
         .then(registration => console.log('Service Worker registered with scope:', registration.scope))
@@ -881,6 +1009,7 @@ function renderWithPagination(list, containerEl, keyword = "") {
     }
   }
 
+  // অ্যাপ চালু করুন
   init();
 });
 
@@ -899,3 +1028,4 @@ function renderWithPagination(list, containerEl, keyword = "") {
     counterEl.textContent = "N/A";
   }
 })();
+
